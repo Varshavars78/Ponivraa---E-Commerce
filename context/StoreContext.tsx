@@ -16,6 +16,7 @@ interface StoreContextType {
   refreshProducts: () => void;
   deleteProduct: (id: string) => void;
   addProductReview: (productId: string, review: Review) => void;
+  deleteProductReview: (productId: string, reviewId: string) => void;
   paymentSettings: PaymentSettings;
   updatePaymentSettings: (settings: PaymentSettings) => void;
 }
@@ -64,6 +65,11 @@ export const StoreProvider = ({ children }: { children?: ReactNode }) => {
     refreshProducts(); // Refresh to get updated rating
   };
 
+  const deleteProductReview = (productId: string, reviewId: string) => {
+    StorageService.deleteReview(productId, reviewId);
+    refreshProducts();
+  };
+
   const updatePaymentSettings = (settings: PaymentSettings) => {
     StorageService.savePaymentSettings(settings);
     setPaymentSettings(settings);
@@ -103,7 +109,7 @@ export const StoreProvider = ({ children }: { children?: ReactNode }) => {
   return (
     <StoreContext.Provider value={{ 
       cart, addToCart, removeFromCart, updateQuantity, clearCart, cartTotal,
-      user, isAdmin: user?.role === 'admin', refreshAuth, products, refreshProducts, deleteProduct, addProductReview,
+      user, isAdmin: user?.role === 'admin', refreshAuth, products, refreshProducts, deleteProduct, addProductReview, deleteProductReview,
       paymentSettings, updatePaymentSettings
     }}>
       {children}

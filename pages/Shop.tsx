@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../context/StoreContext';
 import { Category, Product } from '../types';
-import { ShoppingBag, Tag } from 'lucide-react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { ShoppingBag, Tag, Star, Plus, Minus } from 'lucide-react';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 
 export const Shop = () => {
   const { products, addToCart, user } = useStore();
@@ -10,6 +10,9 @@ export const Shop = () => {
   const initialCat = searchParams.get('cat') || 'All';
   const [selectedCategory, setSelectedCategory] = useState<string>(initialCat);
   const navigate = useNavigate();
+  
+  // Local state to track quantity for each product before adding to cart
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const cat = searchParams.get('cat');
@@ -22,13 +25,26 @@ export const Shop = () => {
     p.status === 'active' && (selectedCategory === 'All' || p.category === selectedCategory)
   );
 
-  const handleAddToCart = (product: Product) => {
+  const handleQuantityChange = (e: React.MouseEvent, productId: string, delta: number, stock: number) => {
+    e.preventDefault();
+    setQuantities(prev => {
+      const current = prev[productId] || 1;
+      const next = Math.max(1, Math.min(current + delta, stock));
+      return { ...prev, [productId]: next };
+    });
+  };
+
+  const handleAddToCart = (e: React.MouseEvent, product: Product) => {
+    e.preventDefault(); 
     if (!user) {
         navigate('/login');
         return;
     }
     if(product.stock > 0) {
-      addToCart(product, 1);
+      const qty = quantities[product.id] || 1;
+      addToCart(product, qty);
+      // Reset quantity to 1 after adding
+      setQuantities(prev => ({ ...prev, [product.id]: 1 }));
     }
   };
 
@@ -66,49 +82,81 @@ export const Shop = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredProducts.map(product => (
-            <div key={product.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
-              <div className="relative h-64 bg-gray-100">
-                <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
-                {product.isSeasonal && (
-                  <span className="absolute top-3 left-3 bg-earth-500 text-white text-xs font-bold px-2 py-1 rounded-md flex items-center">
-                    <Tag size={12} className="mr-1" /> Seasonal
-                  </span>
-                )}
-                {product.stock === 0 && (
-                   <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
-                     <span className="bg-gray-800 text-white px-4 py-2 rounded-md font-bold">Out of Stock</span>
-                   </div>
-                )}
-              </div>
-              <div className="p-4 flex-1 flex flex-col">
-                <div className="text-xs text-primary-600 font-semibold mb-1 uppercase tracking-wider">{product.category}</div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-1">{product.name}</h3>
-                <p className="text-sm text-gray-500 mb-4 line-clamp-2 flex-1">{product.description}</p>
+          {filteredProducts.map(product => {
+             const rating = product.reviews && product.reviews.length > 0 
+                ? (product.reviews.reduce((acc, r) => acc + r.rating, 0) / product.reviews.length).toFixed(1)
+                : null;
+             const currentQty = quantities[product.id] || 1;
                 
-                <div className="mt-auto">
-                   <div className="flex items-baseline mb-3">
-                     {product.discountPrice ? (
-                       <>
-                        <span className="text-xl font-bold text-earth-900 mr-2">₹{product.discountPrice}</span>
-                        <span className="text-gray-400 text-sm line-through">₹{product.price}</span>
-                       </>
-                     ) : (
-                       <span className="text-xl font-bold text-earth-900">₹{product.price}</span>
-                     )}
-                  </div>
-                  <button
-                    onClick={() => handleAddToCart(product)}
-                    disabled={product.stock === 0}
-                    className="w-full bg-primary-600 text-white py-2 rounded-full hover:bg-primary-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium flex items-center justify-center"
-                  >
-                    <ShoppingBag size={18} className="mr-2" />
-                    {product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
-                  </button>
+             return (
+                <Link to={`/product/${product.id}`} key={product.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow flex flex-col group">
+                <div className="relative h-64 bg-gray-100">
+                    <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    {product.isSeasonal && (
+                    <span className="absolute top-3 left-3 bg-earth-500 text-white text-xs font-bold px-2 py-1 rounded-md flex items-center shadow-sm">
+                        <Tag size={12} className="mr-1" /> Seasonal
+                    </span>
+                    )}
+                    {product.stock === 0 && (
+                    <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
+                        <span className="bg-gray-800 text-white px-4 py-2 rounded-md font-bold">Out of Stock</span>
+                    </div>
+                    )}
                 </div>
-              </div>
-            </div>
-          ))}
+                <div className="p-4 flex-1 flex flex-col">
+                    <div className="flex justify-between items-start mb-1">
+                        <div className="text-xs text-primary-600 font-semibold uppercase tracking-wider">{product.category}</div>
+                        {rating && <div className="flex items-center text-xs font-bold text-yellow-500"><Star size={10} fill="currentColor" className="mr-1"/>{rating}</div>}
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-1">{product.name}</h3>
+                    <p className="text-sm text-gray-500 mb-4 line-clamp-2 flex-1">{product.description}</p>
+                    
+                    <div className="mt-auto">
+                      <div className="flex items-baseline mb-3">
+                          {product.discountPrice ? (
+                          <>
+                              <span className="text-xl font-bold text-earth-900 mr-2">₹{product.discountPrice}</span>
+                              <span className="text-gray-400 text-sm line-through">₹{product.price}</span>
+                          </>
+                          ) : (
+                          <span className="text-xl font-bold text-earth-900">₹{product.price}</span>
+                          )}
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                          {/* Quantity Selector */}
+                          <div className="flex items-center border border-gray-200 rounded-full h-10 px-2 bg-gray-50" onClick={(e) => e.preventDefault()}>
+                              <button 
+                                onClick={(e) => handleQuantityChange(e, product.id, -1, product.stock)}
+                                className="w-6 h-full flex items-center justify-center text-gray-500 hover:text-primary-600 disabled:opacity-30"
+                                disabled={currentQty <= 1 || product.stock === 0}
+                              >
+                                  <Minus size={14} />
+                              </button>
+                              <span className="w-6 text-center text-sm font-bold text-gray-800">{currentQty}</span>
+                              <button 
+                                onClick={(e) => handleQuantityChange(e, product.id, 1, product.stock)}
+                                className="w-6 h-full flex items-center justify-center text-gray-500 hover:text-primary-600 disabled:opacity-30"
+                                disabled={currentQty >= product.stock || product.stock === 0}
+                              >
+                                  <Plus size={14} />
+                              </button>
+                          </div>
+
+                          {/* Add Button */}
+                          <button
+                              onClick={(e) => handleAddToCart(e, product)}
+                              disabled={product.stock === 0}
+                              className="flex-1 bg-primary-600 text-white h-10 rounded-full hover:bg-primary-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium flex items-center justify-center text-sm"
+                          >
+                              <ShoppingBag size={16} className="mr-2" />
+                              {product.stock === 0 ? 'Out' : 'Add'}
+                          </button>
+                      </div>
+                    </div>
+                </div>
+                </Link>
+          )})}
         </div>
       )}
     </div>

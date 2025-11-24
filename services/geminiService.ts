@@ -35,6 +35,7 @@ export const generateChatResponse = async (
       2. If a user asks about stock, refer to the list above.
       3. We only accept UPI payments currently.
       4. Keep answers short (under 50 words if possible) unless explaining a recipe or benefit.
+      5. Use the googleMaps tool if the user asks for our location or farm address.
     `;
 
     const response = await ai.models.generateContent({
@@ -42,6 +43,7 @@ export const generateChatResponse = async (
       contents: userMessage,
       config: {
         systemInstruction: systemInstruction,
+        tools: [{googleMaps: {}}],
       }
     });
 
@@ -50,4 +52,69 @@ export const generateChatResponse = async (
     console.error("Gemini API Error:", error);
     return "I'm having trouble connecting to the farm right now. Please try again later.";
   }
+};
+
+export const generateProductImage = async (prompt: string, size: "1K" | "2K" | "4K" = "1K"): Promise<string | null> => {
+    const apiKey = getApiKey();
+    if (!apiKey) return null;
+
+    try {
+        const ai = new GoogleGenAI({ apiKey });
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-pro-image-preview',
+            contents: { parts: [{ text: prompt }] },
+            config: { 
+                imageConfig: { 
+                    aspectRatio: "1:1",
+                    imageSize: size
+                } 
+            }
+        });
+
+        for (const part of response.candidates?.[0]?.content?.parts || []) {
+            if (part.inlineData) {
+                return `data:image/png;base64,${part.inlineData.data}`;
+            }
+        }
+        return null;
+    } catch (error) {
+        console.error("Image Generation Error:", error);
+        return null;
+    }
+};
+
+export const editProductImage = async (imageBase64: string, prompt: string): Promise<string | null> => {
+    const apiKey = getApiKey();
+    if (!apiKey) return null;
+
+    try {
+        const ai = new GoogleGenAI({ apiKey });
+        // Ensure base64 string doesn't have the header
+        const base64Data = imageBase64.split(',')[1] || imageBase64;
+        
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash-image',
+            contents: {
+                parts: [
+                    {
+                        inlineData: {
+                            data: base64Data,
+                            mimeType: 'image/png',
+                        },
+                    },
+                    { text: prompt },
+                ],
+            },
+        });
+
+        for (const part of response.candidates?.[0]?.content?.parts || []) {
+            if (part.inlineData) {
+                return `data:image/png;base64,${part.inlineData.data}`;
+            }
+        }
+        return null;
+    } catch (error) {
+        console.error("Image Edit Error:", error);
+        return null;
+    }
 };

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useStore } from '../context/StoreContext';
 import { StorageService } from '../services/storage';
 import { Order, UserDetails } from '../types';
-import { QrCode, AlertCircle, CreditCard, Wallet, Loader } from 'lucide-react';
+import { QrCode, AlertCircle, CreditCard, Wallet, Loader, Lock, ArrowRight } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
 export const Checkout = () => {
@@ -24,6 +24,7 @@ export const Checkout = () => {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'UPI' | 'Razorpay'>(
     paymentSettings.razorpayEnabled ? 'Razorpay' : 'UPI'
   );
+  const [showCardForm, setShowCardForm] = useState(false);
   
   const [transactionId, setTransactionId] = useState('');
   const [error, setError] = useState('');
@@ -115,12 +116,12 @@ export const Checkout = () => {
     createOrder('UPI', transactionId, 'Pending');
   };
 
-  const handleRazorpayPayment = () => {
+  const handleRazorpayFormSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
       setIsProcessing(true);
-      // Simulate Razorpay Modal Delay
+      // Simulate Processing
       setTimeout(() => {
           setIsProcessing(false);
-          // Simulate Successful Payment
           const mockTxnId = `pay_${Date.now()}`;
           createOrder('Razorpay', mockTxnId, 'Verified');
       }, 2000);
@@ -189,7 +190,7 @@ export const Checkout = () => {
             <div className="grid grid-cols-2 gap-4">
                 {paymentSettings.razorpayEnabled && (
                     <button 
-                        onClick={() => setSelectedPaymentMethod('Razorpay')}
+                        onClick={() => { setSelectedPaymentMethod('Razorpay'); setShowCardForm(false); }}
                         className={`p-4 rounded-xl border-2 flex flex-col items-center justify-center space-y-2 transition-all ${selectedPaymentMethod === 'Razorpay' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-gray-200 hover:border-indigo-200 text-gray-600'}`}
                     >
                         <CreditCard size={28} />
@@ -198,7 +199,7 @@ export const Checkout = () => {
                 )}
                 {paymentSettings.upiEnabled && (
                     <button 
-                        onClick={() => setSelectedPaymentMethod('UPI')}
+                        onClick={() => { setSelectedPaymentMethod('UPI'); setShowCardForm(false); }}
                         className={`p-4 rounded-xl border-2 flex flex-col items-center justify-center space-y-2 transition-all ${selectedPaymentMethod === 'UPI' ? 'border-primary-600 bg-primary-50 text-primary-700' : 'border-gray-200 hover:border-primary-200 text-gray-600'}`}
                     >
                         <QrCode size={28} />
@@ -215,23 +216,47 @@ export const Checkout = () => {
 
             {/* Razorpay Section */}
             {selectedPaymentMethod === 'Razorpay' && paymentSettings.razorpayEnabled && (
-                <div className="border-2 border-dashed border-indigo-200 rounded-xl p-8 flex flex-col items-center justify-center bg-indigo-50/30">
-                     <div className="bg-white p-3 rounded-full shadow-sm mb-4">
-                         <Wallet className="text-indigo-600" size={32} />
-                     </div>
-                     <p className="text-center text-gray-600 mb-6">Securely pay using Credit/Debit Card, Netbanking, or UPI via Razorpay.</p>
-                     
-                     <button 
-                        onClick={handleRazorpayPayment}
-                        disabled={isProcessing}
-                        className="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold hover:bg-indigo-700 transition-colors flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-                     >
-                        {isProcessing ? (
-                            <><Loader className="animate-spin mr-2" size={20} /> Processing...</>
-                        ) : (
-                            'Pay Now'
-                        )}
-                     </button>
+                <div className="border-2 border-dashed border-indigo-200 rounded-xl p-6 bg-indigo-50/30">
+                     {!showCardForm ? (
+                         <div className="flex flex-col items-center justify-center">
+                            <div className="bg-white p-3 rounded-full shadow-sm mb-4">
+                                <Wallet className="text-indigo-600" size={32} />
+                            </div>
+                            <p className="text-center text-gray-600 mb-6">Securely pay using Credit/Debit Card, Netbanking, or UPI via Razorpay.</p>
+                            
+                            <button 
+                                onClick={() => setShowCardForm(true)}
+                                className="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold hover:bg-indigo-700 transition-colors flex items-center justify-center shadow-lg"
+                            >
+                                Pay Now
+                            </button>
+                         </div>
+                     ) : (
+                         <form onSubmit={handleRazorpayFormSubmit} className="space-y-4">
+                             <h3 className="font-bold text-gray-800 flex items-center"><Lock size={16} className="mr-2" /> Secure Payment</h3>
+                             <div>
+                                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Card Number</label>
+                                 <input type="text" required placeholder="0000 0000 0000 0000" className="w-full border rounded p-2 bg-white text-gray-900 text-sm" maxLength={19} />
+                             </div>
+                             <div className="grid grid-cols-2 gap-4">
+                                 <div>
+                                     <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Expiry</label>
+                                     <input type="text" required placeholder="MM/YY" className="w-full border rounded p-2 bg-white text-gray-900 text-sm" />
+                                 </div>
+                                 <div>
+                                     <label className="block text-xs font-bold text-gray-500 uppercase mb-1">CVV</label>
+                                     <input type="password" required placeholder="123" className="w-full border rounded p-2 bg-white text-gray-900 text-sm" maxLength={3} />
+                                 </div>
+                             </div>
+                             <button 
+                                type="submit"
+                                disabled={isProcessing}
+                                className="w-full bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 transition-colors flex items-center justify-center shadow-lg mt-4"
+                             >
+                                {isProcessing ? <Loader className="animate-spin mr-2" /> : 'Pay ₹' + cartTotal}
+                             </button>
+                         </form>
+                     )}
                 </div>
             )}
 

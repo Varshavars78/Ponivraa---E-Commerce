@@ -54,6 +54,7 @@ export interface Order {
   paymentMethod: 'UPI' | 'Razorpay';
   paymentStatus: 'Pending' | 'Verified' | 'Failed';
   orderStatus: 'Pending' | 'Processing' | 'Packed' | 'Shipped' | 'Delivered' | 'Cancelled';
+  adminNotes?: string;
   createdAt: string;
 }
 

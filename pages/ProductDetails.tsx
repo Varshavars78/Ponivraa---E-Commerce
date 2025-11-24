@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useStore } from '../context/StoreContext';
 import { Product, Review } from '../types';
-import { ShoppingBag, Star, ArrowLeft, Send, Plus, Minus } from 'lucide-react';
+import { ShoppingBag, Star, ArrowLeft, Send, Plus, Minus, Trash2 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
 export const ProductDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { products, addToCart, user, addProductReview } = useStore();
+  const { products, addToCart, user, addProductReview, deleteProductReview, isAdmin } = useStore();
   const { t } = useLanguage();
   
   const [product, setProduct] = useState<Product | null>(null);
@@ -93,6 +93,17 @@ export const ProductDetails = () => {
           ...prev,
           reviews: [...(prev.reviews || []), newReview]
       } : null);
+  };
+
+  const handleDeleteReview = (reviewId: string) => {
+      if(window.confirm("Are you sure you want to delete this review?")) {
+          deleteProductReview(product.id, reviewId);
+          // Update local state to reflect deletion immediately
+          setProduct(prev => prev ? {
+              ...prev,
+              reviews: prev.reviews?.filter(r => r.id !== reviewId)
+          } : null);
+      }
   };
 
   // Calculate Average Rating
@@ -248,7 +259,18 @@ export const ProductDetails = () => {
                                       </div>
                                       <span className="font-bold text-gray-900">{review.userName}</span>
                                   </div>
-                                  <span className="text-xs text-gray-400">{new Date(review.date).toLocaleDateString()}</span>
+                                  <div className="flex items-center space-x-3">
+                                      <span className="text-xs text-gray-400">{new Date(review.date).toLocaleDateString()}</span>
+                                      {isAdmin && (
+                                          <button 
+                                            onClick={() => handleDeleteReview(review.id)}
+                                            className="text-red-400 hover:text-red-600 transition-colors"
+                                            title="Delete Review"
+                                          >
+                                              <Trash2 size={16} />
+                                          </button>
+                                      )}
+                                  </div>
                               </div>
                               <div className="flex text-yellow-400 mb-2">
                                   {[...Array(5)].map((_, i) => (

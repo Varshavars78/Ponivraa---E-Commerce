@@ -1,14 +1,23 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useStore } from '../../context/StoreContext';
 import { StorageService } from '../../services/storage';
 import { Product, Category } from '../../types';
-import { Plus, Edit, Trash, X, Upload, Check, CheckCircle2, XCircle } from 'lucide-react';
+import { Plus, Edit, Trash, X, Upload, Check, CheckCircle2, XCircle, Sparkles, Wand2, Loader } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { generateProductImage, editProductImage } from '../../services/geminiService';
 
 export const AdminProducts = () => {
   const { products, refreshProducts, deleteProduct } = useStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  // AI State
+  const [aiMode, setAiMode] = useState<'generate' | 'edit' | null>(null);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [imageSize, setImageSize] = useState<"1K" | "2K" | "4K">("1K");
   
   const [formData, setFormData] = useState<Partial<Product>>({
     name: '',
@@ -23,17 +32,27 @@ export const AdminProducts = () => {
 
   const [imagePreview, setImagePreview] = useState<string>('');
 
+  useEffect(() => {
+    const editId = searchParams.get('edit');
+    if (editId && products.length > 0) {
+      const productToEdit = products.find(p => p.id === editId);
+      if (productToEdit) {
+        handleEdit(productToEdit);
+        setSearchParams({});
+      }
+    }
+  }, [products, searchParams, setSearchParams]);
+
   const handleEdit = (product: Product) => {
     setEditingProduct(product);
     setFormData(product);
     setImagePreview(product.imageUrl);
     setIsModalOpen(true);
+    setAiMode(null);
   };
 
   const handleDelete = (id: string) => {
-    // Direct delete call without confirm to match request or strict requirement
-    // In production, keeping confirm is better, but user said "unable to delete" so simplified logic
-    if(window.confirm('Delete this product?')) {
+    if(window.confirm('Are you sure you want to delete this product? This action cannot be undone.')) {
         deleteProduct(id); 
     }
   };
@@ -58,6 +77,34 @@ export const AdminProducts = () => {
       setImagePreview(e.target.value);
   };
 
+  const handleAiGenerate = async () => {
+      if (!aiPrompt) return;
+      setAiLoading(true);
+      const generatedImage = await generateProductImage(aiPrompt, imageSize);
+      if (generatedImage) {
+          setFormData(prev => ({ ...prev, imageUrl: generatedImage }));
+          setImagePreview(generatedImage);
+          setAiMode(null);
+      } else {
+          alert("Failed to generate image. Check API key and try again.");
+      }
+      setAiLoading(false);
+  };
+
+  const handleAiEdit = async () => {
+      if (!aiPrompt || !imagePreview) return;
+      setAiLoading(true);
+      const editedImage = await editProductImage(imagePreview, aiPrompt);
+      if (editedImage) {
+          setFormData(prev => ({ ...prev, imageUrl: editedImage }));
+          setImagePreview(editedImage);
+          setAiMode(null);
+      } else {
+          alert("Failed to edit image. Ensure you are using a supported image format.");
+      }
+      setAiLoading(false);
+  };
+
   const openModal = () => {
       setEditingProduct(null);
       setFormData({ 
@@ -73,6 +120,7 @@ export const AdminProducts = () => {
       });
       setImagePreview('');
       setIsModalOpen(true);
+      setAiMode(null);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -134,8 +182,8 @@ export const AdminProducts = () => {
                     </td>
                     <td className="px-6 py-4">
                     <div className="flex space-x-2">
-                        <button onClick={() => handleEdit(p)} className="text-blue-600 hover:bg-blue-50 p-1 rounded"><Edit size={18} /></button>
-                        <button onClick={() => handleDelete(p.id)} className="text-red-600 hover:bg-red-50 p-1 rounded"><Trash size={18} /></button>
+                        <button onClick={() => handleEdit(p)} className="text-blue-600 hover:bg-blue-50 p-1 rounded" title="Edit"><Edit size={18} /></button>
+                        <button onClick={() => handleDelete(p.id)} className="text-red-600 hover:bg-red-50 p-1 rounded" title="Delete"><Trash size={18} /></button>
                     </div>
                     </td>
                 </tr>
@@ -187,7 +235,63 @@ export const AdminProducts = () => {
               </div>
               
               <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                  <label className="block text-sm font-bold mb-2 text-gray-700">Product Image</label>
+                  <div className="flex justify-between items-center mb-2">
+                      <label className="block text-sm font-bold text-gray-700">Product Image</label>
+                      <div className="flex space-x-2">
+                          <button 
+                            type="button"
+                            onClick={() => setAiMode(aiMode === 'generate' ? null : 'generate')}
+                            className={`text-xs flex items-center px-2 py-1 rounded border ${aiMode === 'generate' ? 'bg-purple-100 text-purple-700 border-purple-300' : 'bg-white text-purple-600 border-purple-200 hover:bg-purple-50'}`}
+                          >
+                              <Sparkles size={12} className="mr-1" /> Generate with AI
+                          </button>
+                          {imagePreview && (
+                              <button 
+                                type="button"
+                                onClick={() => setAiMode(aiMode === 'edit' ? null : 'edit')}
+                                className={`text-xs flex items-center px-2 py-1 rounded border ${aiMode === 'edit' ? 'bg-indigo-100 text-indigo-700 border-indigo-300' : 'bg-white text-indigo-600 border-indigo-200 hover:bg-indigo-50'}`}
+                              >
+                                  <Wand2 size={12} className="mr-1" /> Edit with AI
+                              </button>
+                          )}
+                      </div>
+                  </div>
+
+                  {/* AI Controls */}
+                  {aiMode && (
+                      <div className="mb-4 p-3 bg-white border border-purple-100 rounded-lg shadow-sm animate-fade-in">
+                          <div className="flex gap-2 mb-2">
+                              <input 
+                                type="text" 
+                                placeholder={aiMode === 'generate' ? "Describe the image to generate..." : "Describe how to edit the image (e.g. remove background)..."}
+                                className="flex-1 border rounded p-2 text-sm bg-gray-50 text-gray-900"
+                                value={aiPrompt}
+                                onChange={(e) => setAiPrompt(e.target.value)}
+                              />
+                              {aiMode === 'generate' && (
+                                <select 
+                                    value={imageSize} 
+                                    onChange={(e) => setImageSize(e.target.value as any)}
+                                    className="border rounded p-2 text-sm bg-gray-50 text-gray-900"
+                                >
+                                    <option value="1K">1K</option>
+                                    <option value="2K">2K</option>
+                                    <option value="4K">4K</option>
+                                </select>
+                              )}
+                          </div>
+                          <button 
+                            type="button"
+                            onClick={aiMode === 'generate' ? handleAiGenerate : handleAiEdit}
+                            disabled={aiLoading || !aiPrompt}
+                            className="w-full bg-purple-600 text-white py-1.5 rounded text-sm font-medium hover:bg-purple-700 disabled:bg-purple-300 flex items-center justify-center"
+                          >
+                              {aiLoading ? <Loader size={14} className="animate-spin mr-2" /> : (aiMode === 'generate' ? <Sparkles size={14} className="mr-2"/> : <Wand2 size={14} className="mr-2"/>)}
+                              {aiLoading ? 'Processing...' : (aiMode === 'generate' ? 'Generate Image' : 'Apply Edits')}
+                          </button>
+                      </div>
+                  )}
+
                   <div className="flex items-start space-x-4">
                       <div className="flex-1 space-y-3">
                         <div className="flex items-center space-x-2">
@@ -220,6 +324,7 @@ export const AdminProducts = () => {
                         type="button" 
                         onClick={() => setFormData({...formData, isSeasonal: !formData.isSeasonal})}
                         className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all shadow-sm ${formData.isSeasonal ? 'bg-green-100 text-green-600 border border-green-200' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}
+                        title={formData.isSeasonal ? "Marked as Seasonal" : "Not Seasonal"}
                     >
                         {formData.isSeasonal ? <CheckCircle2 size={24} /> : <XCircle size={24} />}
                     </button>
@@ -231,6 +336,7 @@ export const AdminProducts = () => {
                         type="button" 
                         onClick={() => setFormData({...formData, status: formData.status === 'active' ? 'inactive' : 'active'})}
                         className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all shadow-sm ${formData.status === 'active' ? 'bg-green-100 text-green-600 border border-green-200' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}
+                        title={formData.status === 'active' ? "Product is Active" : "Product is Inactive"}
                     >
                         {formData.status === 'active' ? <CheckCircle2 size={24} /> : <XCircle size={24} />}
                     </button>

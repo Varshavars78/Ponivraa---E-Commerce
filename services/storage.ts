@@ -259,6 +259,15 @@ export const StorageService = {
     }
   },
 
+  deleteReview: (productId: string, reviewId: string) => {
+    const products = StorageService.getProducts();
+    const index = products.findIndex(p => p.id === productId);
+    if (index >= 0 && products[index].reviews) {
+      products[index].reviews = products[index].reviews.filter(r => r.id !== reviewId);
+      localStorage.setItem(KEYS.PRODUCTS, JSON.stringify(products));
+    }
+  },
+
   getOrders: (): Order[] => {
     const data = localStorage.getItem(KEYS.ORDERS);
     return data ? JSON.parse(data) : [];
