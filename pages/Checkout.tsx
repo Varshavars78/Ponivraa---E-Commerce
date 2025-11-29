@@ -10,7 +10,7 @@ export const Checkout = () => {
   const { cart, cartTotal, clearCart, user, paymentSettings } = useStore();
   const { t } = useLanguage();
   const navigate = useNavigate();
-  const [step, setStep] = useState(1); // 1: Details, 2: Payment
+  const [step, setStep] = useState(1);
   
   const [formData, setFormData] = useState<UserDetails>({
     name: '',
@@ -20,7 +20,6 @@ export const Checkout = () => {
     pincode: ''
   });
 
-  // Payment Selection State
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'UPI' | 'Razorpay'>(
     paymentSettings.razorpayEnabled ? 'Razorpay' : 'UPI'
   );
@@ -30,7 +29,6 @@ export const Checkout = () => {
   const [error, setError] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Pre-fill data
   useEffect(() => {
     if (user) {
         setFormData({
@@ -43,7 +41,6 @@ export const Checkout = () => {
     }
   }, [user]);
 
-  // Update default payment method if settings change
   useEffect(() => {
      if(paymentSettings.razorpayEnabled && !paymentSettings.upiEnabled) setSelectedPaymentMethod('Razorpay');
      if(!paymentSettings.razorpayEnabled && paymentSettings.upiEnabled) setSelectedPaymentMethod('UPI');
@@ -70,14 +67,14 @@ export const Checkout = () => {
     const cleanPhone = formData.phone.trim();
     const phoneRegex = /^\d{10}$/;
     if (!phoneRegex.test(cleanPhone)) {
-        setError('Invalid phone number. Please enter a valid 10-digit number (no spaces).');
+        setError('Invalid phone number.');
         return;
     }
 
     const cleanPin = formData.pincode.trim();
     const pinRegex = /^\d{6}$/;
     if (!pinRegex.test(cleanPin)) {
-        setError('Invalid pincode. Please enter a valid 6-digit code (no spaces).');
+        setError('Invalid pincode.');
         return;
     }
 
@@ -119,7 +116,6 @@ export const Checkout = () => {
   const handleRazorpayFormSubmit = (e: React.FormEvent) => {
       e.preventDefault();
       setIsProcessing(true);
-      // Simulate Processing
       setTimeout(() => {
           setIsProcessing(false);
           const mockTxnId = `pay_${Date.now()}`;
@@ -131,7 +127,6 @@ export const Checkout = () => {
     <div className="max-w-3xl mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold text-center mb-8">{t('Checkout')}</h1>
 
-      {/* Stepper */}
       <div className="flex items-center justify-center mb-8">
         <div className={`flex items-center ${step >= 1 ? 'text-primary-600' : 'text-gray-400'}`}>
           <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${step >= 1 ? 'border-primary-600 bg-primary-50' : 'border-gray-300'}`}>1</div>
@@ -188,76 +183,82 @@ export const Checkout = () => {
 
             {/* Payment Method Selector */}
             <div className="grid grid-cols-2 gap-4">
-                {paymentSettings.razorpayEnabled && (
-                    <button 
-                        onClick={() => { setSelectedPaymentMethod('Razorpay'); setShowCardForm(false); }}
-                        className={`p-4 rounded-xl border-2 flex flex-col items-center justify-center space-y-2 transition-all ${selectedPaymentMethod === 'Razorpay' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-gray-200 hover:border-indigo-200 text-gray-600'}`}
-                    >
-                        <CreditCard size={28} />
-                        <span className="font-bold">Razorpay</span>
-                    </button>
-                )}
-                {paymentSettings.upiEnabled && (
-                    <button 
-                        onClick={() => { setSelectedPaymentMethod('UPI'); setShowCardForm(false); }}
-                        className={`p-4 rounded-xl border-2 flex flex-col items-center justify-center space-y-2 transition-all ${selectedPaymentMethod === 'UPI' ? 'border-primary-600 bg-primary-50 text-primary-700' : 'border-gray-200 hover:border-primary-200 text-gray-600'}`}
-                    >
-                        <QrCode size={28} />
-                        <span className="font-bold">Manual UPI</span>
-                    </button>
-                )}
+                <button 
+                    onClick={() => { 
+                        if(paymentSettings.razorpayEnabled) {
+                            setSelectedPaymentMethod('Razorpay'); 
+                            setShowCardForm(false);
+                        }
+                    }}
+                    className={`p-4 rounded-xl border-2 flex flex-col items-center justify-center space-y-2 transition-all relative ${selectedPaymentMethod === 'Razorpay' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-600'} ${!paymentSettings.razorpayEnabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-indigo-200'}`}
+                >
+                    <CreditCard size={28} />
+                    <span className="font-bold">Razorpay</span>
+                    {!paymentSettings.razorpayEnabled && (
+                        <span className="absolute -top-2 -right-2 bg-gray-200 text-gray-600 text-[10px] px-2 py-0.5 rounded">Disabled</span>
+                    )}
+                </button>
+                
+                <button 
+                    onClick={() => {
+                        if(paymentSettings.upiEnabled) {
+                            setSelectedPaymentMethod('UPI'); 
+                            setShowCardForm(false); 
+                        }
+                    }}
+                    className={`p-4 rounded-xl border-2 flex flex-col items-center justify-center space-y-2 transition-all relative ${selectedPaymentMethod === 'UPI' ? 'border-primary-600 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-600'} ${!paymentSettings.upiEnabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-primary-200'}`}
+                >
+                    <QrCode size={28} />
+                    <span className="font-bold">Manual UPI</span>
+                    {!paymentSettings.upiEnabled && (
+                        <span className="absolute -top-2 -right-2 bg-gray-200 text-gray-600 text-[10px] px-2 py-0.5 rounded">Disabled</span>
+                    )}
+                </button>
             </div>
 
-            {!paymentSettings.razorpayEnabled && !paymentSettings.upiEnabled && (
-                <div className="text-center text-red-500 py-8">
-                    No payment methods are currently active. Please contact support.
+            {/* Razorpay Placeholder as requested */}
+            {selectedPaymentMethod === 'Razorpay' && paymentSettings.razorpayEnabled && !showCardForm && (
+                <div className="border-2 border-dashed border-blue-300 rounded-xl p-8 flex flex-col items-center justify-center bg-blue-50/30">
+                     <div className="bg-white p-3 rounded-full shadow-sm mb-4">
+                         <Wallet className="text-indigo-600" size={32} />
+                     </div>
+                     <p className="text-center text-gray-600 mb-6">Securely pay using Credit/Debit Card, Netbanking, or UPI via Razorpay.</p>
+                     
+                     <button 
+                        onClick={() => setShowCardForm(true)}
+                        className="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold hover:bg-indigo-700 transition-colors flex items-center justify-center shadow-lg"
+                     >
+                        Pay Now
+                     </button>
                 </div>
             )}
 
-            {/* Razorpay Section */}
-            {selectedPaymentMethod === 'Razorpay' && paymentSettings.razorpayEnabled && (
-                <div className="border-2 border-dashed border-indigo-200 rounded-xl p-6 bg-indigo-50/30">
-                     {!showCardForm ? (
-                         <div className="flex flex-col items-center justify-center">
-                            <div className="bg-white p-3 rounded-full shadow-sm mb-4">
-                                <Wallet className="text-indigo-600" size={32} />
-                            </div>
-                            <p className="text-center text-gray-600 mb-6">Securely pay using Credit/Debit Card, Netbanking, or UPI via Razorpay.</p>
-                            
-                            <button 
-                                onClick={() => setShowCardForm(true)}
-                                className="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold hover:bg-indigo-700 transition-colors flex items-center justify-center shadow-lg"
-                            >
-                                Pay Now
-                            </button>
+            {/* Razorpay Form */}
+            {selectedPaymentMethod === 'Razorpay' && paymentSettings.razorpayEnabled && showCardForm && (
+                 <form onSubmit={handleRazorpayFormSubmit} className="space-y-4 p-4 border border-indigo-100 rounded-lg bg-indigo-50/10">
+                     <h3 className="font-bold text-gray-800 flex items-center"><Lock size={16} className="mr-2" /> Secure Payment</h3>
+                     <div>
+                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Card Number</label>
+                         <input type="text" required placeholder="0000 0000 0000 0000" className="w-full border rounded p-2 bg-white text-gray-900 text-sm" maxLength={19} />
+                     </div>
+                     <div className="grid grid-cols-2 gap-4">
+                         <div>
+                             <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Expiry</label>
+                             <input type="text" required placeholder="MM/YY" className="w-full border rounded p-2 bg-white text-gray-900 text-sm" />
                          </div>
-                     ) : (
-                         <form onSubmit={handleRazorpayFormSubmit} className="space-y-4">
-                             <h3 className="font-bold text-gray-800 flex items-center"><Lock size={16} className="mr-2" /> Secure Payment</h3>
-                             <div>
-                                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Card Number</label>
-                                 <input type="text" required placeholder="0000 0000 0000 0000" className="w-full border rounded p-2 bg-white text-gray-900 text-sm" maxLength={19} />
-                             </div>
-                             <div className="grid grid-cols-2 gap-4">
-                                 <div>
-                                     <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Expiry</label>
-                                     <input type="text" required placeholder="MM/YY" className="w-full border rounded p-2 bg-white text-gray-900 text-sm" />
-                                 </div>
-                                 <div>
-                                     <label className="block text-xs font-bold text-gray-500 uppercase mb-1">CVV</label>
-                                     <input type="password" required placeholder="123" className="w-full border rounded p-2 bg-white text-gray-900 text-sm" maxLength={3} />
-                                 </div>
-                             </div>
-                             <button 
-                                type="submit"
-                                disabled={isProcessing}
-                                className="w-full bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 transition-colors flex items-center justify-center shadow-lg mt-4"
-                             >
-                                {isProcessing ? <Loader className="animate-spin mr-2" /> : 'Pay ₹' + cartTotal}
-                             </button>
-                         </form>
-                     )}
-                </div>
+                         <div>
+                             <label className="block text-xs font-bold text-gray-500 uppercase mb-1">CVV</label>
+                             <input type="password" required placeholder="123" className="w-full border rounded p-2 bg-white text-gray-900 text-sm" maxLength={3} />
+                         </div>
+                     </div>
+                     <button 
+                        type="submit"
+                        disabled={isProcessing}
+                        className="w-full bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 transition-colors flex items-center justify-center shadow-lg mt-4"
+                     >
+                        {isProcessing ? <Loader className="animate-spin mr-2" /> : 'Pay ₹' + cartTotal}
+                     </button>
+                 </form>
             )}
 
             {/* UPI Section */}

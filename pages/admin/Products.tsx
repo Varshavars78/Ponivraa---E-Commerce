@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useStore } from '../../context/StoreContext';
 import { StorageService } from '../../services/storage';
 import { Product, Category } from '../../types';
-import { Plus, Edit, Trash, X, Upload, Check, CheckCircle2, XCircle, Sparkles, Wand2, Loader } from 'lucide-react';
+import { Plus, Edit, Trash, X, Upload, Check, CheckCircle2, XCircle, Sparkles, Wand2, Loader, Trash2 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { generateProductImage, editProductImage } from '../../services/geminiService';
 
@@ -13,7 +13,6 @@ export const AdminProducts = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   
-  // AI State
   const [aiMode, setAiMode] = useState<'generate' | 'edit' | null>(null);
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
@@ -54,6 +53,7 @@ export const AdminProducts = () => {
   const handleDelete = (id: string) => {
     if(window.confirm('Are you sure you want to delete this product? This action cannot be undone.')) {
         deleteProduct(id); 
+        setIsModalOpen(false);
     }
   };
 
@@ -195,12 +195,14 @@ export const AdminProducts = () => {
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-y-auto max-h-[90vh]">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-xl">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-y-auto max-h-[95vh] my-4">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-xl sticky top-0 z-10">
               <h2 className="text-xl font-bold text-gray-900">{editingProduct ? 'Edit Product' : 'New Product'}</h2>
               <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 bg-white p-1 rounded-full shadow-sm"><X size={20} /></button>
             </div>
+            
             <form onSubmit={handleSubmit} className="p-6 space-y-5">
+              {/* Form Fields */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold mb-1.5 text-gray-700">Name</label>
@@ -234,6 +236,7 @@ export const AdminProducts = () => {
                 </div>
               </div>
               
+              {/* Image Section */}
               <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                   <div className="flex justify-between items-center mb-2">
                       <label className="block text-sm font-bold text-gray-700">Product Image</label>
@@ -259,11 +262,11 @@ export const AdminProducts = () => {
 
                   {/* AI Controls */}
                   {aiMode && (
-                      <div className="mb-4 p-3 bg-white border border-purple-100 rounded-lg shadow-sm animate-fade-in">
+                      <div className="mb-4 p-3 bg-white border border-purple-100 rounded-lg shadow-sm">
                           <div className="flex gap-2 mb-2">
                               <input 
                                 type="text" 
-                                placeholder={aiMode === 'generate' ? "Describe the image to generate..." : "Describe how to edit the image (e.g. remove background)..."}
+                                placeholder={aiMode === 'generate' ? "Describe the image to generate..." : "Describe how to edit the image..."}
                                 className="flex-1 border rounded p-2 text-sm bg-gray-50 text-gray-900"
                                 value={aiPrompt}
                                 onChange={(e) => setAiPrompt(e.target.value)}
@@ -317,36 +320,41 @@ export const AdminProducts = () => {
               </div>
 
               {/* Custom Toggles with Icons */}
-              <div className="flex space-x-8 pt-2">
-                 <div className="flex items-center justify-between space-x-4 p-3 bg-gray-50 rounded-lg border border-gray-200 w-1/2">
+              <div className="flex space-x-4 pt-2">
+                 <div className="flex items-center justify-between space-x-4 p-3 bg-gray-50 rounded-lg border border-gray-200 w-1/2 cursor-pointer" onClick={() => setFormData({...formData, isSeasonal: !formData.isSeasonal})}>
                     <span className="text-sm font-bold text-gray-700">Seasonal Item</span>
-                    <button 
-                        type="button" 
-                        onClick={() => setFormData({...formData, isSeasonal: !formData.isSeasonal})}
-                        className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all shadow-sm ${formData.isSeasonal ? 'bg-green-100 text-green-600 border border-green-200' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}
-                        title={formData.isSeasonal ? "Marked as Seasonal" : "Not Seasonal"}
+                    <div 
+                        className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all shadow-sm border ${formData.isSeasonal ? 'bg-green-100 text-green-600 border-green-200' : 'bg-gray-100 text-gray-400 border-gray-200'}`}
                     >
                         {formData.isSeasonal ? <CheckCircle2 size={24} /> : <XCircle size={24} />}
-                    </button>
+                    </div>
                  </div>
                  
-                 <div className="flex items-center justify-between space-x-4 p-3 bg-gray-50 rounded-lg border border-gray-200 w-1/2">
+                 <div className="flex items-center justify-between space-x-4 p-3 bg-gray-50 rounded-lg border border-gray-200 w-1/2 cursor-pointer" onClick={() => setFormData({...formData, status: formData.status === 'active' ? 'inactive' : 'active'})}>
                     <span className="text-sm font-bold text-gray-700">Active Product</span>
-                    <button 
-                        type="button" 
-                        onClick={() => setFormData({...formData, status: formData.status === 'active' ? 'inactive' : 'active'})}
-                        className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all shadow-sm ${formData.status === 'active' ? 'bg-green-100 text-green-600 border border-green-200' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}
-                        title={formData.status === 'active' ? "Product is Active" : "Product is Inactive"}
+                    <div 
+                        className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all shadow-sm border ${formData.status === 'active' ? 'bg-green-100 text-green-600 border-green-200' : 'bg-gray-100 text-gray-400 border-gray-200'}`}
                     >
                         {formData.status === 'active' ? <CheckCircle2 size={24} /> : <XCircle size={24} />}
-                    </button>
+                    </div>
                  </div>
               </div>
 
-              <div className="pt-4 border-t border-gray-100">
+              <div className="pt-4 border-t border-gray-100 flex flex-col gap-3">
                 <button type="submit" className="w-full bg-primary-600 text-white py-3 rounded-lg font-bold hover:bg-primary-700 shadow-md flex justify-center items-center">
                   <Check size={20} className="mr-2" /> {editingProduct ? 'Update Product' : 'Create Product'}
                 </button>
+                
+                {/* DELETE BUTTON REQUESTED */}
+                {editingProduct && (
+                    <button 
+                        type="button"
+                        onClick={() => handleDelete(editingProduct.id)}
+                        className="w-full bg-red-50 text-red-600 border border-red-200 py-2.5 rounded-lg font-bold hover:bg-red-100 flex justify-center items-center text-sm"
+                    >
+                        <Trash2 size={18} className="mr-2" /> Delete Product
+                    </button>
+                )}
               </div>
             </form>
           </div>
